@@ -73,4 +73,39 @@ mod tests {
 
         println!("Generated {} tokens from {} files", n_tokens, n_files);
     }
+
+    #[test]
+    fn lexgen() {
+        use lexer_lexgen::Lexer;
+
+        let mut n_files = 0;
+        let mut n_tokens = 0;
+
+        for lua_file in lua_file_iter() {
+            n_files += 1;
+
+            println!("{}", lua_file.to_string_lossy());
+
+            let file_contents = read_to_string(lua_file).expect("Unable to read test file");
+
+            let mut lexer = Lexer::new(&file_contents);
+
+            loop {
+                match lexer.next() {
+                    Some(Ok(_token)) => n_tokens += 1,
+                    Some(Err(err)) => panic!("Lexer error: {:?}", err),
+                    None => break,
+                }
+            }
+        }
+
+        if n_files == 0 {
+            panic!(
+                "{} is empty, did you forget `git submodule update --init`?",
+                LUA_TEST_FILES_DIR
+            );
+        }
+
+        println!("Generated {} tokens from {} files", n_tokens, n_files);
+    }
 }

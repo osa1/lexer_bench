@@ -4,8 +4,10 @@ use super::token::Token;
 
 use lexgen::lexer;
 
+use std::mem::replace;
+
 #[derive(Debug, Default, Clone)]
-struct LexerState {
+pub struct LexerState {
     /// Number of opening `=`s seen when parsing a long string
     long_string_opening_eqs: usize,
     /// Number of closing `=`s seen when parsing a long string
@@ -33,7 +35,7 @@ impl Default for Quote {
 }
 
 lexer! {
-    Lexer(LexerState) -> Token<&'input str>;
+    pub Lexer(LexerState) -> Token<String>;
 
     type Error = LexerError_;
 
@@ -110,15 +112,13 @@ lexer! {
         '"' => |mut lexer| {
             lexer.state().short_string_delim = Quote::Double;
             lexer.state().string_buf.clear();
-            // lexer.switch(LexerRule::String)
-            todo!()
+            lexer.switch(LexerRule::String)
         },
 
         '\'' => |mut lexer| {
             lexer.state().short_string_delim = Quote::Single;
             lexer.state().string_buf.clear();
-            // lexer.switch(LexerRule::String)
-            todo!()
+            lexer.switch(LexerRule::String)
         },
 
         "[" => |mut lexer| {
@@ -126,8 +126,7 @@ lexer! {
                 Some('[') | Some('=') => {
                     lexer.state().long_string_opening_eqs = 0;
                     lexer.state().in_comment = false;
-                    // lexer.switch(LexerRule::LongStringBracketLeft)
-                    todo!()
+                    lexer.switch(LexerRule::LongStringBracketLeft)
                 }
                 _ => lexer.return_(Token::LeftBracket),
             }
@@ -139,7 +138,7 @@ lexer! {
 
         $var_init $var_subseq* => |lexer| {
             let match_ = lexer.match_();
-            lexer.return_(Token::Name(match_))
+            lexer.return_(Token::Name(match_.to_owned()))
         },
 
         $digit+ ('.'? $digit+ (('e' | 'E') ('+'|'-')? $digit+)?)? =? |lexer| {
@@ -153,7 +152,6 @@ lexer! {
         },
     }
 
-/*
     rule LongStringBracketLeft {
         '=' =>
             |mut lexer| {
@@ -196,7 +194,7 @@ lexer! {
                         lexer.switch(LexerRule::Init)
                     } else {
                         let match_ = &lexer.match_[left_eqs + 2..lexer.match_.len() - right_eqs - 2];
-                        lexer.switch_and_return(LexerRule::Init, Token::String(StringToken::Raw(match_)))
+                        lexer.switch_and_return(LexerRule::Init, Token::String(match_.to_owned()))
                     }
                 } else {
                     lexer.switch(LexerRule::String)
@@ -211,8 +209,8 @@ lexer! {
     rule String {
         '"' => |mut lexer| {
             if lexer.state().short_string_delim == Quote::Double {
-                let str = lexer.state().string_buf.clone();
-                lexer.switch_and_return(LexerRule::Init, Token::String(StringToken::Interpreted(str)))
+                let str = replace(&mut lexer.state().string_buf, String::new());
+                lexer.switch_and_return(LexerRule::Init, Token::String(str))
             } else {
                 lexer.state().string_buf.push('"');
                 lexer.continue_()
@@ -221,8 +219,8 @@ lexer! {
 
         "'" => |mut lexer| {
             if lexer.state().short_string_delim == Quote::Single {
-                let str = lexer.state().string_buf.clone();
-                lexer.switch_and_return(LexerRule::Init, Token::String(StringToken::Interpreted(str)))
+                let str = replace(&mut lexer.state().string_buf, String::new());
+                lexer.switch_and_return(LexerRule::Init, Token::String(str))
             } else {
                 lexer.state().string_buf.push('\'');
                 lexer.continue_()
@@ -290,7 +288,6 @@ lexer! {
             lexer.continue_()
         },
     }
-*/
 
     rule EnterComment {
         '[' => |mut lexer| {
@@ -298,8 +295,7 @@ lexer! {
                 Some('[') | Some('=') => {
                     lexer.state().long_string_opening_eqs = 0;
                     lexer.state().in_comment = true;
-                    // lexer.switch(LexerRule::LongStringBracketLeft)
-                    todo!()
+                    lexer.switch(LexerRule::LongStringBracketLeft)
                 }
                 _ =>
                     lexer.switch(LexerRule::Comment),
