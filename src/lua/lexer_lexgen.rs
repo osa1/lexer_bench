@@ -1,4 +1,5 @@
 use super::error::LexerError as LexerError_;
+use super::lexer_luster::{read_float, read_hex_float, read_hex_integer, read_integer};
 use super::token::Token;
 
 use lexgen::lexer;
@@ -141,17 +142,14 @@ lexer! {
             lexer.return_(Token::Name(match_))
         },
 
-        $digit+ ('.'? $digit+ (('e' | 'E') ('+'|'-')? $digit+)?)? =>
-            |lexer| {
-                let match_ = lexer.match_();
-                // lexer.return_(Token::Number(match_))
-                todo!()
-            },
-
-        "0x" $hex_digit+ => |lexer| {
+        $digit+ ('.'? $digit+ (('e' | 'E') ('+'|'-')? $digit+)?)? =? |lexer| {
             let match_ = lexer.match_();
-            // lexer.return_(Token::Number(match_))
-            todo!()
+            lexer.return_(read_numeral(match_))
+        },
+
+        "0x" $hex_digit+ =? |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(read_numeral(match_))
         },
     }
 
@@ -319,4 +317,82 @@ lexer! {
         _ => |lexer|
             lexer.continue_(),
     }
+}
+
+fn read_numeral<S>(s: &str) -> Result<Token<S>, LexerError_> {
+    let mut chars = s.chars().peekable();
+
+    let p1 = chars.next().unwrap();
+    assert!(p1 == '.' || p1.is_ascii_digit());
+
+    let mut string_buffer = String::new();
+
+    let p2 = chars.peek().copied();
+    let is_hex = p1 == '0' && (p2 == Some('x') || p2 == Some('X'));
+    if is_hex {
+        string_buffer.push(p1);
+        string_buffer.push(p2.unwrap());
+        chars.next();
+    }
+
+    let mut has_radix = false;
+    while let Some(c) = chars.peek().copied() {
+        if c == '.' && !has_radix {
+            string_buffer.push('.');
+            has_radix = true;
+            chars.next();
+        } else if (!is_hex && c.is_ascii_digit()) || (is_hex && c.is_ascii_hexdigit()) {
+            string_buffer.push(c);
+            chars.next();
+        } else {
+            break;
+        }
+    }
+
+    let mut has_exp = false;
+    if let Some(exp_begin) = chars.peek().copied() {
+        if (is_hex && (exp_begin == 'p' || exp_begin == 'P'))
+            || (!is_hex && (exp_begin == 'e' || exp_begin == 'E'))
+        {
+            string_buffer.push(exp_begin);
+            has_exp = true;
+            chars.next();
+
+            if let Some(sign) = chars.peek().copied() {
+                if sign == '+' || sign == '-' {
+                    string_buffer.push(sign);
+                    chars.next();
+                }
+            }
+
+            while let Some(c) = chars.peek().copied() {
+                if c.is_ascii_digit() {
+                    string_buffer.push(c);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    if !has_exp && !has_radix {
+        if is_hex {
+            if let Some(i) = read_hex_integer(string_buffer.as_bytes()) {
+                return Ok(Token::Integer(i));
+            }
+        }
+        if let Some(i) = read_integer(string_buffer.as_bytes()) {
+            return Ok(Token::Integer(i));
+        }
+    }
+
+    Ok(Token::Float(
+        if is_hex {
+            read_hex_float(string_buffer.as_bytes())
+        } else {
+            read_float(string_buffer.as_bytes())
+        }
+        .ok_or(LexerError_::BadNumber)?,
+    ))
 }
