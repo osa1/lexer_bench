@@ -1,0 +1,15 @@
+[package]
+name = "lexer_bench"
+version = "0.1.0"
+authors = ["Ömer Sinan Ağacan <omeragacan@gmail.com>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "benchmarks"
+harness = false
