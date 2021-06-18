@@ -1,6 +1,6 @@
-use std::{fmt, io};
+use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LexerError {
     UnfinishedShortString(u8),
     UnexpectedCharacter(u8),
@@ -13,7 +13,7 @@ pub enum LexerError {
     InvalidLongStringDelimiter,
     UnfinishedLongString,
     BadNumber,
-    IOError(io::Error),
+    // IOError(io::Error),
 }
 
 impl fmt::Display for LexerError {
@@ -42,7 +42,7 @@ impl fmt::Display for LexerError {
             LexerError::InvalidLongStringDelimiter => write!(f, "invalid long string delimiter"),
             LexerError::UnfinishedLongString => write!(f, "unfinished long string"),
             LexerError::BadNumber => write!(f, "malformed number"),
-            LexerError::IOError(err) => write!(f, "IO Error: {}", err),
+            // LexerError::IOError(err) => write!(f, "IO Error: {}", err),
         }
     }
 }

@@ -611,7 +611,8 @@ where
                     Err(e) => {
                         if e.kind() != io::ErrorKind::Interrupted {
                             self.source = None;
-                            return Err(LexerError::IOError(e));
+                            // return Err(LexerError::IOError(e));
+                            panic!()
                         }
                     }
                 }

@@ -108,4 +108,34 @@ mod tests {
 
         println!("Generated {} tokens from {} files", n_tokens, n_files);
     }
+
+    #[test]
+    fn compare_lexers() {
+        for lua_file in lua_file_iter() {
+            println!("{}", lua_file.to_string_lossy());
+
+            let file_contents = read_to_string(lua_file).expect("Unable to read test file");
+
+            let mut lexgen = lexer_lexgen::Lexer::new(&file_contents);
+            let mut luster = lexer_luster::Lexer::new(file_contents.as_bytes(), |s| {
+                unsafe { std::str::from_utf8_unchecked(s) }.to_owned()
+            });
+
+            loop {
+                let lexgen_token = lexgen.next();
+                let luster_token = luster
+                    .read_token()
+                    .map_err(|err| lexer_lexgen::LexerError::UserError(err))
+                    .transpose();
+
+                let eof = lexgen_token.is_none();
+
+                assert_eq!(lexgen_token.map(|t| t.map(|(_, t, _)| t)), luster_token);
+
+                if eof {
+                    break;
+                }
+            }
+        }
+    }
 }
