@@ -141,7 +141,7 @@ lexer! {
             lexer.return_(Token::Name(match_.to_owned()))
         },
 
-        $digit+ ('.'? $digit+ (('e' | 'E') ('+'|'-')? $digit+)?)? =? |lexer| {
+        $digit+ '.'? $digit* (('e' | 'E') ('+'|'-')? $digit+)? =? |lexer| {
             let match_ = lexer.match_();
             lexer.return_(read_numeral(match_))
         },
@@ -197,13 +197,14 @@ lexer! {
                         lexer.switch_and_return(LexerRule::Init, Token::String(match_.to_owned()))
                     }
                 } else {
-                    lexer.switch(LexerRule::String)
+                    lexer.state().long_string_closing_eqs = 0;
+                    lexer.continue_()
                 }
             },
 
         _ =>
             |lexer|
-                lexer.switch(LexerRule::String),
+                lexer.switch(LexerRule::LongString),
     }
 
     rule String {
