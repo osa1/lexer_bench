@@ -520,7 +520,7 @@ where
     // Reads a hex or decimal integer or floating point identifier.  Allows decimal integers (123),
     // hex integers (0xdeadbeef), decimal floating point with optional exponent and exponent sign
     // (3.21e+1), and hex floats with optional exponent and exponent sign (0xe.2fp-1c).
-    fn read_numeral(&mut self) -> Result<Token<S>, LexerError> {
+    pub fn read_numeral(&mut self) -> Result<Token<S>, LexerError> {
         let p1 = self.peek(0).unwrap().unwrap();
         assert!(p1 == b'.' || is_digit(p1));
 
