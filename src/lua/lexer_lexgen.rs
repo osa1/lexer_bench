@@ -1,3 +1,4 @@
+use super::error::LexerError as LexerError_;
 use super::token::Token;
 
 use lexgen::lexer;
@@ -31,7 +32,9 @@ impl Default for Quote {
 }
 
 lexer! {
-    Lexer(LexerState) -> Token<'input>;
+    Lexer(LexerState) -> Token<&'input str>;
+
+    type Error = LexerError_;
 
     let whitespace = [' ' '\t' '\n'] | "\r\n";
 
@@ -48,31 +51,38 @@ lexer! {
     rule Init {
         $whitespace,
 
-        "+" = Token::Plus,
+        "+" = Token::Add,
         "-" = Token::Minus,
-        "*" = Token::Star,
-        "/" = Token::Slash,
-        "%" = Token::Percent,
-        "^" = Token::Caret,
-        "#" = Token::Hash,
-        "==" = Token::EqEq,
-        "~=" = Token::TildeEq,
-        "<=" = Token::LtEq,
-        ">=" = Token::GtEq,
-        "<" = Token::Lt,
-        ">" = Token::Gt,
-        "=" = Token::Eq,
-        "(" = Token::LParen,
-        ")" = Token::RParen,
-        "{" = Token::LBrace,
-        "}" = Token::RBrace,
-        "]" = Token::RBracket,
-        ";" = Token::Semicolon,
+        "*" = Token::Mul,
+        "/" = Token::Div,
+        "//" = Token::IDiv,
+        "%" = Token::Mod,
+        "^" = Token::Pow,
+        "#" = Token::Len,
+        "==" = Token::Equal,
+        "~=" = Token::NotEqual,
+        "<=" = Token::LessEqual,
+        ">=" = Token::GreaterEqual,
+        "<" = Token::LessThan,
+        ">" = Token::GreaterThan,
+        "=" = Token::Assign,
+        "(" = Token::LeftParen,
+        ")" = Token::RightParen,
+        "{" = Token::LeftBrace,
+        "}" = Token::RightBrace,
+        "]" = Token::RightBracket,
+        ";" = Token::SemiColon,
         ":" = Token::Colon,
         "," = Token::Comma,
         "." = Token::Dot,
-        ".." = Token::DotDot,
-        "..." = Token::DotDotDot,
+        ".." = Token::Concat,
+        "..." = Token::Dots,
+        "&" = Token::BitAnd,
+        "|" = Token::BitOr,
+        "~" = Token::BitNotXor,
+        ">>" = Token::ShiftRight,
+        "<<" = Token::ShiftLeft,
+        "::" = Token::DoubleColon,
         "and" = Token::And,
         "break" = Token::Break,
         "do" = Token::Do,
@@ -83,7 +93,7 @@ lexer! {
         "for" = Token::For,
         "function" = Token::Function,
         "if" = Token::If,
-        "in" = Token::If,
+        "in" = Token::In,
         "local" = Token::Local,
         "nil" = Token::Nil,
         "not" = Token::Not,
@@ -94,17 +104,20 @@ lexer! {
         "true" = Token::True,
         "until" = Token::Until,
         "while" = Token::While,
+        "goto" = Token::Goto,
 
         '"' => |mut lexer| {
             lexer.state().short_string_delim = Quote::Double;
             lexer.state().string_buf.clear();
-            lexer.switch(LexerRule::String)
+            // lexer.switch(LexerRule::String)
+            todo!()
         },
 
         '\'' => |mut lexer| {
             lexer.state().short_string_delim = Quote::Single;
             lexer.state().string_buf.clear();
-            lexer.switch(LexerRule::String)
+            // lexer.switch(LexerRule::String)
+            todo!()
         },
 
         "[" => |mut lexer| {
@@ -112,9 +125,10 @@ lexer! {
                 Some('[') | Some('=') => {
                     lexer.state().long_string_opening_eqs = 0;
                     lexer.state().in_comment = false;
-                    lexer.switch(LexerRule::LongStringBracketLeft)
+                    // lexer.switch(LexerRule::LongStringBracketLeft)
+                    todo!()
                 }
-                _ => lexer.return_(Token::LBracket),
+                _ => lexer.return_(Token::LeftBracket),
             }
         },
 
@@ -124,21 +138,24 @@ lexer! {
 
         $var_init $var_subseq* => |lexer| {
             let match_ = lexer.match_();
-            lexer.return_(Token::Var(match_))
+            lexer.return_(Token::Name(match_))
         },
 
         $digit+ ('.'? $digit+ (('e' | 'E') ('+'|'-')? $digit+)?)? =>
             |lexer| {
                 let match_ = lexer.match_();
-                lexer.return_(Token::Number(match_))
+                // lexer.return_(Token::Number(match_))
+                todo!()
             },
 
         "0x" $hex_digit+ => |lexer| {
             let match_ = lexer.match_();
-            lexer.return_(Token::Number(match_))
+            // lexer.return_(Token::Number(match_))
+            todo!()
         },
     }
 
+/*
     rule LongStringBracketLeft {
         '=' =>
             |mut lexer| {
@@ -275,6 +292,7 @@ lexer! {
             lexer.continue_()
         },
     }
+*/
 
     rule EnterComment {
         '[' => |mut lexer| {
@@ -282,7 +300,8 @@ lexer! {
                 Some('[') | Some('=') => {
                     lexer.state().long_string_opening_eqs = 0;
                     lexer.state().in_comment = true;
-                    lexer.switch(LexerRule::LongStringBracketLeft)
+                    // lexer.switch(LexerRule::LongStringBracketLeft)
+                    todo!()
                 }
                 _ =>
                     lexer.switch(LexerRule::Comment),
