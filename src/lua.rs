@@ -122,15 +122,15 @@ mod tests {
             });
 
             loop {
-                let lexgen_token = lexgen.next();
+                let lexgen_token = lexgen.next().map(|t| t.map(|(_, t, _)| t));
                 let luster_token = luster
                     .read_token()
-                    .map_err(|err| lexer_lexgen::LexerError::UserError(err))
+                    .map_err(lexer_lexgen::LexerError::UserError)
                     .transpose();
 
                 let eof = lexgen_token.is_none();
 
-                assert_eq!(lexgen_token.map(|t| t.map(|(_, t, _)| t)), luster_token);
+                assert_eq!(lexgen_token, luster_token, "left=lexgen, right=luster",);
 
                 if eof {
                     break;
