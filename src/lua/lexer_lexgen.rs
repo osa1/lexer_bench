@@ -283,6 +283,11 @@ lexer! {
             lexer.continue_()
         },
 
+        "\\0" => |mut lexer| {
+            lexer.state().string_buf.push('\0');
+            lexer.continue_()
+        },
+
         _ => |mut lexer| {
             let char = lexer.match_().chars().next_back().unwrap();
             lexer.state().string_buf.push(char);
