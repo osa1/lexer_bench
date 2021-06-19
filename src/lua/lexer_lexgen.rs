@@ -404,6 +404,9 @@ lexer! {
             }
         },
 
+        '\n' => |lexer|
+            lexer.switch(LexerRule::Init),
+
         _ => |lexer|
             lexer.switch(LexerRule::Comment),
     }
