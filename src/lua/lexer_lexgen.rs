@@ -4,8 +4,8 @@ use super::token::Token;
 
 use lexgen::lexer;
 
-use std::mem::replace;
 use std::convert::TryFrom;
+use std::mem::replace;
 
 #[derive(Debug, Default, Clone)]
 pub struct LexerState {

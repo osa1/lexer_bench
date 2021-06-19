@@ -10,32 +10,32 @@ pub mod lexer_lexgen;
 pub mod lexer_luster;
 pub mod token;
 
+use std::fs;
+use std::path::PathBuf;
+
+static LUA_TEST_FILES_DIR: &str = "test_files/lua";
+
+pub fn lua_file_iter() -> impl Iterator<Item = PathBuf> {
+    let dir = fs::read_dir(LUA_TEST_FILES_DIR).expect("Unable to read test_files/lua");
+    dir.filter_map(|entry| {
+        let entry = entry.expect("Unable to read dir entry");
+        let path = entry.path();
+        let extension = match path.extension() {
+            None => return None,
+            Some(ext) => ext,
+        };
+
+        if extension.eq_ignore_ascii_case("lua") {
+            Some(path)
+        } else {
+            None
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use std::fs::{read_dir, read_to_string};
-    use std::path::PathBuf;
-
-    static LUA_TEST_FILES_DIR: &str = "test_files/lua";
-
-    fn lua_file_iter() -> impl Iterator<Item = PathBuf> {
-        let dir = read_dir(LUA_TEST_FILES_DIR).expect("Unable to read test_files/lua");
-        dir.filter_map(|entry| {
-            let entry = entry.expect("Unable to read dir entry");
-            let path = entry.path();
-            let extension = match path.extension() {
-                None => return None,
-                Some(ext) => ext,
-            };
-
-            if extension.eq_ignore_ascii_case("lua") {
-                Some(path)
-            } else {
-                None
-            }
-        })
-    }
 
     #[test]
     fn luster() {
@@ -49,7 +49,7 @@ mod tests {
 
             println!("{}", lua_file.to_string_lossy());
 
-            let file_contents = read_to_string(lua_file).expect("Unable to read test file");
+            let file_contents = fs::read_to_string(lua_file).expect("Unable to read test file");
 
             let mut lexer = Lexer::new(file_contents.as_bytes(), |slice| {
                 slice.to_vec().into_boxed_slice()
@@ -86,7 +86,7 @@ mod tests {
 
             println!("{}", lua_file.to_string_lossy());
 
-            let file_contents = read_to_string(lua_file).expect("Unable to read test file");
+            let file_contents = fs::read_to_string(lua_file).expect("Unable to read test file");
 
             let mut lexer = Lexer::new(&file_contents);
 
@@ -114,7 +114,7 @@ mod tests {
         for lua_file in lua_file_iter() {
             println!("{}", lua_file.to_string_lossy());
 
-            let file_contents = read_to_string(lua_file).expect("Unable to read test file");
+            let file_contents = fs::read_to_string(lua_file).expect("Unable to read test file");
 
             let mut lexgen = lexer_lexgen::Lexer::new(&file_contents);
             let mut luster = lexer_luster::Lexer::new(file_contents.as_bytes(), |s| s.to_owned());
