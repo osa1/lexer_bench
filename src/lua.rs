@@ -117,9 +117,7 @@ mod tests {
             let file_contents = read_to_string(lua_file).expect("Unable to read test file");
 
             let mut lexgen = lexer_lexgen::Lexer::new(&file_contents);
-            let mut luster = lexer_luster::Lexer::new(file_contents.as_bytes(), |s| {
-                unsafe { std::str::from_utf8_unchecked(s) }.to_owned()
-            });
+            let mut luster = lexer_luster::Lexer::new(file_contents.as_bytes(), |s| s.to_owned());
 
             loop {
                 let lexgen_token = lexgen.next().map(|t| t.map(|(_, t, _)| t));
@@ -129,6 +127,13 @@ mod tests {
                     .transpose();
 
                 let eof = lexgen_token.is_none();
+
+                // if let Some(Ok(Some(s))) = luster_token
+                //     .as_ref()
+                //     .map(|t| t.as_ref().map(|t| t.get_string()))
+                // {
+                //     println!("{:?}", s.as_bytes());
+                // }
 
                 assert_eq!(lexgen_token, luster_token, "left=lexgen, right=luster",);
 

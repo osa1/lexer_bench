@@ -4,8 +4,8 @@ use super::token::Token;
 
 use lexgen::lexer;
 
-use std::convert::TryFrom;
 use std::mem::replace;
+use std::convert::TryFrom;
 
 #[derive(Debug, Default, Clone)]
 pub struct LexerState {
@@ -16,10 +16,12 @@ pub struct LexerState {
     /// When parsing a short string, whether it's started with a double or single quote
     short_string_delim: Quote,
     /// Buffer for strings
-    string_buf: String,
+    string_buf: Vec<u8>,
     /// When parsing a long string, whether we're inside a comment or not. When inside a comment we
     /// don't return a token. Otherwise we return a string.
     in_comment: bool,
+    /// Unicode codepoint being parsed.
+    unicode_codepoint: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,7 +38,7 @@ impl Default for Quote {
 }
 
 lexer! {
-    pub Lexer(LexerState) -> Token<String>;
+    pub Lexer(LexerState) -> Token<Vec<u8>>;
 
     type Error = LexerError_;
 
@@ -139,7 +141,7 @@ lexer! {
 
         $var_init $var_subseq* => |lexer| {
             let match_ = lexer.match_();
-            lexer.return_(Token::Name(match_.to_owned()))
+            lexer.return_(Token::Name(match_.as_bytes().to_owned()))
         },
 
         $digit+ '.'? $digit* (('e' | 'E') ('+'|'-')? $digit+)? =? |lexer| {
@@ -147,7 +149,12 @@ lexer! {
             lexer.return_(read_numeral(match_))
         },
 
-        "0x" $hex_digit? '.'? $hex_digit* (('p' | 'P') ('+'|'-')? $hex_digit+)? =? |lexer| {
+        '.' $digit+ (('e' | 'E') ('+'|'-')? $digit+)? =? |lexer| {
+            let match_ = lexer.match_();
+            lexer.return_(read_numeral(match_))
+        },
+
+        '0' ('x'|'X') $hex_digit? '.'? $hex_digit* (('p' | 'P') ('+'|'-')? $hex_digit+)? =? |lexer| {
             let match_ = lexer.match_();
             lexer.return_(read_numeral(match_))
         },
@@ -195,7 +202,7 @@ lexer! {
                         lexer.switch(LexerRule::Init)
                     } else {
                         let match_ = &lexer.match_[left_eqs + 2..lexer.match_.len() - right_eqs - 2];
-                        lexer.switch_and_return(LexerRule::Init, Token::String(match_.to_owned()))
+                        lexer.switch_and_return(LexerRule::Init, Token::String(match_.as_bytes().to_owned()))
                     }
                 } else {
                     lexer.state().long_string_closing_eqs = 0;
@@ -211,76 +218,76 @@ lexer! {
     rule String {
         '"' => |mut lexer| {
             if lexer.state().short_string_delim == Quote::Double {
-                let str = replace(&mut lexer.state().string_buf, String::new());
+                let str = replace(&mut lexer.state().string_buf, Vec::new());
                 lexer.switch_and_return(LexerRule::Init, Token::String(str))
             } else {
-                lexer.state().string_buf.push('"');
+                lexer.state().string_buf.push(b'"');
                 lexer.continue_()
             }
         },
 
         "'" => |mut lexer| {
             if lexer.state().short_string_delim == Quote::Single {
-                let str = replace(&mut lexer.state().string_buf, String::new());
+                let str = replace(&mut lexer.state().string_buf, Vec::new());
                 lexer.switch_and_return(LexerRule::Init, Token::String(str))
             } else {
-                lexer.state().string_buf.push('\'');
+                lexer.state().string_buf.push(b'\'');
                 lexer.continue_()
             }
         },
 
         "\\a" => |mut lexer| {
-            lexer.state().string_buf.push('\u{7}');
+            lexer.state().string_buf.push(0x7);
             lexer.continue_()
         },
 
         "\\b" => |mut lexer| {
-            lexer.state().string_buf.push('\u{8}');
+            lexer.state().string_buf.push(0x8);
             lexer.continue_()
         },
 
         "\\f" => |mut lexer| {
-            lexer.state().string_buf.push('\u{c}');
+            lexer.state().string_buf.push(0xc);
             lexer.continue_()
         },
 
         "\\n" => |mut lexer| {
-            lexer.state().string_buf.push('\n');
+            lexer.state().string_buf.push(b'\n');
             lexer.continue_()
         },
 
         "\\r" => |mut lexer| {
-            lexer.state().string_buf.push('\r');
+            lexer.state().string_buf.push(b'\r');
             lexer.continue_()
         },
 
         "\\t" => |mut lexer| {
-            lexer.state().string_buf.push('\t');
+            lexer.state().string_buf.push(b'\t');
             lexer.continue_()
         },
 
         "\\v" => |mut lexer| {
-            lexer.state().string_buf.push('\u{b}');
+            lexer.state().string_buf.push(0xb);
             lexer.continue_()
         },
 
         "\\\\" => |mut lexer| {
-            lexer.state().string_buf.push('\\');
+            lexer.state().string_buf.push(b'\\');
             lexer.continue_()
         },
 
         "\\\"" => |mut lexer| {
-            lexer.state().string_buf.push('"');
+            lexer.state().string_buf.push(b'"');
             lexer.continue_()
         },
 
         "\\'" => |mut lexer| {
-            lexer.state().string_buf.push('\'');
+            lexer.state().string_buf.push(b'\'');
             lexer.continue_()
         },
 
         "\\\n" => |mut lexer| {
-            lexer.state().string_buf.push('\n');
+            lexer.state().string_buf.push(b'\n');
             lexer.continue_()
         },
 
@@ -289,39 +296,98 @@ lexer! {
             let match_ = lexer.match_();
             let bytes = match_.as_bytes();
             let digit = bytes[bytes.len() - 1] - b'0';
-            lexer.state().string_buf.push(
-                char::try_from(digit).unwrap()
-            );
+            lexer.state().string_buf.push(digit);
             lexer.continue_()
         },
 
         '\\' $digit $digit => |mut lexer| {
             let match_ = lexer.match_();
             let bytes = match_.as_bytes();
-            let digit1 = u32::from(bytes[bytes.len() - 2] - b'0');
-            let digit2 = u32::from(bytes[bytes.len() - 1] - b'0');
-            lexer.state().string_buf.push(
-                char::try_from(digit1 * 10 + digit2).unwrap()
-            );
+            let digit1 = bytes[bytes.len() - 2] - b'0';
+            let digit2 = bytes[bytes.len() - 1] - b'0';
+            lexer.state().string_buf.push(digit1 * 10 + digit2);
             lexer.continue_()
         },
 
         '\\' $digit $digit $digit => |mut lexer| {
             let match_ = lexer.match_();
             let bytes = match_.as_bytes();
-            let digit1 = u32::from(bytes[bytes.len() - 3] - b'0');
-            let digit2 = u32::from(bytes[bytes.len() - 2] - b'0');
-            let digit3 = u32::from(bytes[bytes.len() - 1] - b'0');
+            let digit1 = bytes[bytes.len() - 3] - b'0';
+            let digit2 = bytes[bytes.len() - 2] - b'0';
+            let digit3 = bytes[bytes.len() - 1] - b'0';
             lexer.state().string_buf.push(
-                char::try_from(digit1 * 100 + digit2 * 10 + digit3).unwrap()
+                digit1 * 100 + digit2 * 10 + digit3
             );
             lexer.continue_()
         },
 
+        "\\x" $hex_digit $hex_digit => |mut lexer| {
+            let match_ = lexer.match_();
+            let bytes = match_.as_bytes();
+            // println!("match_={:?}", match_);
+            use super::lexer_luster::from_hex_digit;
+            let digit1 = from_hex_digit(bytes[bytes.len() - 2]).unwrap();
+            let digit2 = from_hex_digit(bytes[bytes.len() - 1]).unwrap();
+            // println!("digit1={}, digit2={}", digit1, digit2);
+            lexer.state().string_buf.push(
+                digit1 * 16 + digit2
+            );
+            lexer.continue_()
+        },
+
+        // TODO: This is implemented as a separate rule to as otherwise it's difficult to get the
+        // match for the hex characters only (instead of the entire match that includes "\x{" and
+        // stuff before it). We should allow binding regexes inside patterns.
+        "\\u{" => |mut lexer| {
+            lexer.state().unicode_codepoint = 0;
+            lexer.switch(LexerRule::UnicodeCodepoint)
+        },
+
+        "\\z" $whitespace*,
+
         _ => |mut lexer| {
             let char = lexer.match_().chars().next_back().unwrap();
-            lexer.state().string_buf.push(char);
+            let state = lexer.state();
+            let char_utf8_len = char.len_utf8();
+            let cursor = state.string_buf.len();
+            state.string_buf.reserve(char_utf8_len);
+            for _ in 0 .. char_utf8_len {
+                state.string_buf.push(0);
+            }
+            char.encode_utf8(&mut state.string_buf[cursor..]);
             lexer.continue_()
+        },
+    }
+
+    rule UnicodeCodepoint {
+        $hex_digit => |mut lexer| {
+            let c = lexer.match_().chars().next_back().unwrap();
+            let digit = if c >= '0' && c <= '9' {
+                c as u32 - '0' as u32
+            } else if c >= 'a' && c <= 'f' {
+                c as u32 - 'a' as u32 + 10
+            } else {
+                c as u32 - 'A' as u32 + 10
+            };
+
+            let state = lexer.state();
+            state.unicode_codepoint *= 16;
+            state.unicode_codepoint += digit;
+
+            lexer.continue_()
+        },
+
+        '}' => |mut lexer| {
+            let state = lexer.state();
+            let char = char::try_from(state.unicode_codepoint).unwrap();
+            let char_utf8_len = char.len_utf8();
+            let cursor = state.string_buf.len();
+            state.string_buf.reserve(char_utf8_len);
+            for _ in 0 .. char_utf8_len {
+                state.string_buf.push(0);
+            }
+            char.encode_utf8(&mut state.string_buf[cursor..]);
+            lexer.switch(LexerRule::String)
         },
     }
 
@@ -352,5 +418,6 @@ lexer! {
 }
 
 fn read_numeral<S>(s: &str) -> Result<Token<S>, LexerError_> {
+    // println!("read_numeral({:?})", s);
     luster::Lexer::new(s.as_bytes(), |_| panic!()).read_numeral()
 }

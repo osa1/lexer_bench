@@ -62,3 +62,12 @@ pub enum Token<S> {
     Name(S),
     String(S),
 }
+
+impl<S: Clone> Token<S> {
+    pub fn get_string(&self) -> Option<S> {
+        match self {
+            Token::String(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
+}

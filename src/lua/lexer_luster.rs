@@ -852,7 +852,7 @@ fn is_digit(c: u8) -> bool {
     from_digit(c).is_some()
 }
 
-fn from_hex_digit(c: u8) -> Option<u8> {
+pub fn from_hex_digit(c: u8) -> Option<u8> {
     if c >= b'0' && c <= b'9' {
         Some(c - b'0')
     } else if c >= b'a' && c <= b'f' {
