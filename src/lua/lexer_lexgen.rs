@@ -4,6 +4,7 @@ use super::token::Token;
 
 use lexgen::lexer;
 
+use std::convert::TryFrom;
 use std::mem::replace;
 
 #[derive(Debug, Default, Clone)]
@@ -283,8 +284,37 @@ lexer! {
             lexer.continue_()
         },
 
-        "\\0" => |mut lexer| {
-            lexer.state().string_buf.push('\0');
+        // TODO: Better way to match 1-3 digits?
+        '\\' $digit => |mut lexer| {
+            let match_ = lexer.match_();
+            let bytes = match_.as_bytes();
+            let digit = bytes[bytes.len() - 1] - b'0';
+            lexer.state().string_buf.push(
+                char::try_from(digit).unwrap()
+            );
+            lexer.continue_()
+        },
+
+        '\\' $digit $digit => |mut lexer| {
+            let match_ = lexer.match_();
+            let bytes = match_.as_bytes();
+            let digit1 = u32::from(bytes[bytes.len() - 2] - b'0');
+            let digit2 = u32::from(bytes[bytes.len() - 1] - b'0');
+            lexer.state().string_buf.push(
+                char::try_from(digit1 * 10 + digit2).unwrap()
+            );
+            lexer.continue_()
+        },
+
+        '\\' $digit $digit $digit => |mut lexer| {
+            let match_ = lexer.match_();
+            let bytes = match_.as_bytes();
+            let digit1 = u32::from(bytes[bytes.len() - 3] - b'0');
+            let digit2 = u32::from(bytes[bytes.len() - 2] - b'0');
+            let digit3 = u32::from(bytes[bytes.len() - 1] - b'0');
+            lexer.state().string_buf.push(
+                char::try_from(digit1 * 100 + digit2 * 10 + digit3).unwrap()
+            );
             lexer.continue_()
         },
 
