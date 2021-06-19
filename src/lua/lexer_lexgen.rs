@@ -154,7 +154,7 @@ lexer! {
             lexer.return_(read_numeral(match_))
         },
 
-        '0' ('x'|'X') $hex_digit? '.'? $hex_digit* (('p' | 'P') ('+'|'-')? $hex_digit+)? =? |lexer| {
+        '0' ('x'|'X') $hex_digit* '.'? $hex_digit* (('p' | 'P') ('+'|'-')? $hex_digit+)? =? |lexer| {
             let match_ = lexer.match_();
             lexer.return_(read_numeral(match_))
         },
