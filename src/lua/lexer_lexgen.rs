@@ -112,19 +112,19 @@ lexer! {
         "while" = Token::While,
         "goto" = Token::Goto,
 
-        '"' => |mut lexer| {
+        '"' => |lexer| {
             lexer.state().short_string_delim = Quote::Double;
             lexer.state().string_buf.clear();
             lexer.switch(LexerRule::String)
         },
 
-        '\'' => |mut lexer| {
+        '\'' => |lexer| {
             lexer.state().short_string_delim = Quote::Single;
             lexer.state().string_buf.clear();
             lexer.switch(LexerRule::String)
         },
 
-        "[" => |mut lexer| {
+        "[" => |lexer| {
             match lexer.peek() {
                 Some('[') | Some('=') => {
                     lexer.state().long_string_opening_eqs = 0;
@@ -162,7 +162,7 @@ lexer! {
 
     rule LongStringBracketLeft {
         '=' =>
-            |mut lexer| {
+            |lexer| {
                 lexer.state().long_string_opening_eqs += 1;
                 lexer.continue_()
             },
@@ -174,7 +174,7 @@ lexer! {
 
     rule LongString {
         ']' =>
-            |mut lexer| {
+            |lexer| {
                 lexer.state().long_string_closing_eqs = 0;
                 lexer.switch(LexerRule::LongStringBracketRight)
             },
@@ -186,13 +186,13 @@ lexer! {
 
     rule LongStringBracketRight {
         '=' =>
-            |mut lexer| {
+            |lexer| {
                 lexer.state().long_string_closing_eqs += 1;
                 lexer.continue_()
             },
 
         ']' =>
-            |mut lexer| {
+            |lexer| {
                 let state = lexer.state();
                 let in_comment = state.in_comment;
                 let left_eqs = state.long_string_opening_eqs;
@@ -201,7 +201,7 @@ lexer! {
                     if in_comment {
                         lexer.switch(LexerRule::Init)
                     } else {
-                        let match_ = &lexer.match_[left_eqs + 2..lexer.match_.len() - right_eqs - 2];
+                        let match_ = &lexer.match_()[left_eqs + 2..lexer.match_().len() - right_eqs - 2];
                         lexer.switch_and_return(LexerRule::Init, Token::String(match_.as_bytes().to_owned()))
                     }
                 } else {
@@ -216,7 +216,7 @@ lexer! {
     }
 
     rule String {
-        '"' => |mut lexer| {
+        '"' => |lexer| {
             if lexer.state().short_string_delim == Quote::Double {
                 let str = replace(&mut lexer.state().string_buf, Vec::new());
                 lexer.switch_and_return(LexerRule::Init, Token::String(str))
@@ -226,7 +226,7 @@ lexer! {
             }
         },
 
-        "'" => |mut lexer| {
+        "'" => |lexer| {
             if lexer.state().short_string_delim == Quote::Single {
                 let str = replace(&mut lexer.state().string_buf, Vec::new());
                 lexer.switch_and_return(LexerRule::Init, Token::String(str))
@@ -236,63 +236,63 @@ lexer! {
             }
         },
 
-        "\\a" => |mut lexer| {
+        "\\a" => |lexer| {
             lexer.state().string_buf.push(0x7);
             lexer.continue_()
         },
 
-        "\\b" => |mut lexer| {
+        "\\b" => |lexer| {
             lexer.state().string_buf.push(0x8);
             lexer.continue_()
         },
 
-        "\\f" => |mut lexer| {
+        "\\f" => |lexer| {
             lexer.state().string_buf.push(0xc);
             lexer.continue_()
         },
 
-        "\\n" => |mut lexer| {
+        "\\n" => |lexer| {
             lexer.state().string_buf.push(b'\n');
             lexer.continue_()
         },
 
-        "\\r" => |mut lexer| {
+        "\\r" => |lexer| {
             lexer.state().string_buf.push(b'\r');
             lexer.continue_()
         },
 
-        "\\t" => |mut lexer| {
+        "\\t" => |lexer| {
             lexer.state().string_buf.push(b'\t');
             lexer.continue_()
         },
 
-        "\\v" => |mut lexer| {
+        "\\v" => |lexer| {
             lexer.state().string_buf.push(0xb);
             lexer.continue_()
         },
 
-        "\\\\" => |mut lexer| {
+        "\\\\" => |lexer| {
             lexer.state().string_buf.push(b'\\');
             lexer.continue_()
         },
 
-        "\\\"" => |mut lexer| {
+        "\\\"" => |lexer| {
             lexer.state().string_buf.push(b'"');
             lexer.continue_()
         },
 
-        "\\'" => |mut lexer| {
+        "\\'" => |lexer| {
             lexer.state().string_buf.push(b'\'');
             lexer.continue_()
         },
 
-        "\\\n" => |mut lexer| {
+        "\\\n" => |lexer| {
             lexer.state().string_buf.push(b'\n');
             lexer.continue_()
         },
 
         // TODO: Better way to match 1-3 digits?
-        '\\' $digit => |mut lexer| {
+        '\\' $digit => |lexer| {
             let match_ = lexer.match_();
             let bytes = match_.as_bytes();
             let digit = bytes[bytes.len() - 1] - b'0';
@@ -300,7 +300,7 @@ lexer! {
             lexer.continue_()
         },
 
-        '\\' $digit $digit => |mut lexer| {
+        '\\' $digit $digit => |lexer| {
             let match_ = lexer.match_();
             let bytes = match_.as_bytes();
             let digit1 = bytes[bytes.len() - 2] - b'0';
@@ -309,7 +309,7 @@ lexer! {
             lexer.continue_()
         },
 
-        '\\' $digit $digit $digit => |mut lexer| {
+        '\\' $digit $digit $digit => |lexer| {
             let match_ = lexer.match_();
             let bytes = match_.as_bytes();
             let digit1 = bytes[bytes.len() - 3] - b'0';
@@ -321,7 +321,7 @@ lexer! {
             lexer.continue_()
         },
 
-        "\\x" $hex_digit $hex_digit => |mut lexer| {
+        "\\x" $hex_digit $hex_digit => |lexer| {
             let match_ = lexer.match_();
             let bytes = match_.as_bytes();
             // println!("match_={:?}", match_);
@@ -338,14 +338,14 @@ lexer! {
         // TODO: This is implemented as a separate rule to as otherwise it's difficult to get the
         // match for the hex characters only (instead of the entire match that includes "\x{" and
         // stuff before it). We should allow binding regexes inside patterns.
-        "\\u{" => |mut lexer| {
+        "\\u{" => |lexer| {
             lexer.state().unicode_codepoint = 0;
             lexer.switch(LexerRule::UnicodeCodepoint)
         },
 
         "\\z" $whitespace*,
 
-        _ => |mut lexer| {
+        _ => |lexer| {
             let char = lexer.match_().chars().next_back().unwrap();
             let state = lexer.state();
             let char_utf8_len = char.len_utf8();
@@ -360,7 +360,7 @@ lexer! {
     }
 
     rule UnicodeCodepoint {
-        $hex_digit => |mut lexer| {
+        $hex_digit => |lexer| {
             let c = lexer.match_().chars().next_back().unwrap();
             let digit = if c >= '0' && c <= '9' {
                 c as u32 - '0' as u32
@@ -377,7 +377,7 @@ lexer! {
             lexer.continue_()
         },
 
-        '}' => |mut lexer| {
+        '}' => |lexer| {
             let state = lexer.state();
             let char = char::try_from(state.unicode_codepoint).unwrap();
             let char_utf8_len = char.len_utf8();
@@ -392,7 +392,7 @@ lexer! {
     }
 
     rule EnterComment {
-        '[' => |mut lexer| {
+        '[' => |lexer| {
             match lexer.peek() {
                 Some('[') | Some('=') => {
                     lexer.state().long_string_opening_eqs = 0;
