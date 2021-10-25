@@ -6,7 +6,8 @@ edition = "2018"
 license = "MIT"
 
 [dependencies]
-lexgen = { path = "/home/omer/rust/lexgen" }
+lexgen = { path = "/home/omer/rust/lexgen/crates/lexgen" }
+lexgen_util = { path = "/home/omer/rust/lexgen/crates/lexgen_util" }
 
 [dev-dependencies]
 criterion = "0.3"
