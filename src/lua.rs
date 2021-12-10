@@ -123,7 +123,14 @@ mod tests {
                 let lexgen_token = lexgen.next().map(|t| t.map(|(_, t, _)| t));
                 let luster_token = luster
                     .read_token()
-                    .map_err(::lexgen_util::LexerError::Custom)
+                    .map_err(|err| ::lexgen_util::LexerError {
+                        location: ::lexgen_util::Loc {
+                            line: 0,
+                            col: 0,
+                            byte_idx: 0,
+                        },
+                        kind: ::lexgen_util::LexerErrorKind::Custom(err),
+                    })
                     .transpose();
 
                 let eof = lexgen_token.is_none();
